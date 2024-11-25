@@ -5,31 +5,48 @@ with pkgs;
 mkShell {
   buildInputs = [
     # Rust
-    pkgs.cargo
-    pkgs.rustc
+    cargo
+    rustc
 
     # OpenSSL
-    pkgs.openssl
-    pkgs.pkg-config
-    pkgs.perl
+    openssl
+    pkg-config
+
+    # Build tools
+    binutils
+    gcc
+    clang           # Provide an alternative compiler
+    llvm            # Include lld and LLVM utilities
+    lld             # Ensure lld is explicitly included
 
     # Shell
-    pkgs.zsh
-    pkgs.zsh-powerlevel10k
-    pkgs.oh-my-zsh
-    # Include any additional dependencies required by your Zsh configuration
-    pkgs.git
-    pkgs.curl
+    zsh
+    zsh-powerlevel10k
+    oh-my-zsh
+
+    # Additional utilities
+    git
+    curl
   ];
 
-  # Environment variables for OpenSSL
-  OPENSSL_DIR = "${pkgs.openssl.dev}";
-  OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
-  OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
-
   shellHook = ''
-    export SHELL=${pkgs.zsh}/bin/zsh
+    export SHELL=${zsh}/bin/zsh
     export NIX_SHELL_PRESERVE_PROMPT=1
-    exec ${pkgs.zsh}/bin/zsh -l
+
+    # Set environment variables for OpenSSL explicitly
+    export CC=$(which clang)  # Use clang instead of gcc
+    export CXX=$(which clang++)  # Use clang++ instead of g++
+    export LD=$(which lld)  # Use LLVM's lld for linking
+    export OPENSSL_DIR=${openssl.dev}
+    export OPENSSL_LIB_DIR=${openssl.out}/lib
+    export OPENSSL_INCLUDE_DIR=${openssl.dev}/include
+
+    # Force Rust to use clang and lld
+    export RUSTFLAGS="-C linker=$(which clang) -C link-arg=-fuse-ld=lld"
+
+    # Add OpenSSL library to runtime path
+    export LD_LIBRARY_PATH=${openssl.out}/lib:$LD_LIBRARY_PATH
+
+    exec ${zsh}/bin/zsh -l
   '';
 }
